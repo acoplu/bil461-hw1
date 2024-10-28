@@ -5,48 +5,46 @@ int history_count = 0;
 
 // Function to add command to history
 void add_to_history(const char *cmd) {
-    Command *new_command = (Command *)malloc(sizeof(Command));
+    Command *new_command = malloc(sizeof(Command));
     strncpy(new_command->command, cmd, MAX_INPUT_SIZE);
+
     new_command->next = history_head;
     history_head = new_command;
-    if (++history_count > MAX_HISTORY_SIZE) { // remove oldest if exceeds MAX_HISTORY_SIZE
-        Command *current = history_head;
-        for (int i = 1; i < MAX_HISTORY_SIZE - 1; i++) {
-            current = current->next;
-        }
-        free(current->next);
-        current->next = NULL;
-        history_count--;
-    }
+    history_count = history_count + 1;
 }
 
-// Retrieves the `index`-th last command, with 0 being the most recent
+// Retrieves the index-th last command, 0 is the most recent
 char *get_command_by_index(int index) {
     Command *current = history_head;
     for (int i = 0; i < index; i++) {
-        if (!current->next) {
-            return NULL;  // Out of bounds
+        if (current->next == NULL) {
+            return NULL;
         }
         current = current->next;
     }
-    return current ? current->command : NULL;
+
+    // In last iteration current->next can be NULL
+    if(current == NULL) return NULL;
+    else return current->command;
 }
 
 // Function to free command history
 void free_history() {
-    Command *current = history_head;
-    while (current) {
-        Command *temp = current;
-        current = current->next;
+    Command *temp;
+    while (history_head != NULL) {
+        temp = history_head;
+        history_head = history_head->next;
         free(temp);
     }
 }
 
+// Function to execute commands using UNIX Shell
 void execute_command(char *command) {
     char *args[MAX_ARG_SIZE];
     char *token;
     int arg_count = 0;
-    int out_redirect = 0, in_redirect = 0;
+    int out_redirect = 0;
+    int in_redirect = 0;
     char *output_file = NULL;
     char *input_file = NULL;
 
@@ -92,23 +90,20 @@ void execute_command(char *command) {
             close(fd_in);
         }
 
-        execvp(args[0], args);  // Execute the command
-        perror("execvp");  // Only reached if exec fails
+        execvp(args[0], args);
+        perror("execvp");
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
         wait(NULL);  // Parent process waits for child to complete
-    } else {
-        perror("fork");
-        exit(EXIT_FAILURE);
     }
 }
 
+// main loop
 int main() {
     char command[MAX_INPUT_SIZE];
     
     while (1) {
         printf("osh-> ");
-        fflush(stdout);
 
         if (!fgets(command, MAX_INPUT_SIZE, stdin)) break;
         command[strlen(command) - 1] = '\0';  // Remove newline character
@@ -116,26 +111,31 @@ int main() {
         if (strcmp(command, "exit") == 0) break;
 
         // Check if command starts with "!!"
-        if (strncmp(command, "!!", 2) == 0) {
+        char temp[3];
+        temp[0] = command[0];
+        temp[1] = command[1];
+        temp[2] = '\0';
+        if (strcmp(temp, "!!") == 0) {
             int index = atoi(command + 3);  // Extract the index after "!! "
             if (index < 0 || index >= history_count) {
                 printf("Error: No command at index %d in history.\n", index);
                 continue;
             }
 
-            // Get the `index`-th last command
+            // Get the index-th command
             char *history_command = get_command_by_index(index);
             if (history_command) {
-                printf("%s\n", history_command);  // Echo the retrieved command
-                strcpy(command, history_command);  // Set it as the current command
+                strcpy(command, history_command);
             } else {
-                printf("No such command in history.\n");
+                printf("Error: No such command in history.\n");
                 continue;
             }
         }
 
-        add_to_history(command);    // Add current command to history
-        execute_command(command);   // Execute the current command
+        // Add current command to history
+        add_to_history(command);
+        // Execute the current command
+        execute_command(command);
     }
 
     free_history();

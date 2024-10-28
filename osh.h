@@ -7,9 +7,8 @@
 
 #define MAX_INPUT_SIZE 1024
 #define MAX_ARG_SIZE 64
-#define MAX_HISTORY_SIZE 100
 
-// Command history structure
+// Command history node for LinkedList
 typedef struct Command {
     char command[MAX_INPUT_SIZE];
     struct Command *next;
@@ -17,7 +16,7 @@ typedef struct Command {
 
 // History functions
 void add_to_history(const char *cmd);
-char *get_command_by_index(int index);  // Add this function prototype
+char *get_command_by_index(int index);
 void free_history();
 
 // Command execution
