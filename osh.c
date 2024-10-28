@@ -117,9 +117,15 @@ void execute_command(char *command) {
             char *args[MAX_ARG_SIZE];
             char *arg = strtok(cmd_segments[i], " ");
             int arg_count = 0;
-            while (arg != NULL) {
+
+            // Ensure the first argument (command) is captured
+            if (arg != NULL) {
+                args[arg_count++] = arg;  // Store the command
+            }
+
+            // Continue parsing the remaining arguments
+            while ((arg = strtok(NULL, " ")) != NULL) {
                 args[arg_count++] = arg;
-                arg = strtok(NULL, " ");
             }
             args[arg_count] = NULL;
 
