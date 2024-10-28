@@ -40,7 +40,7 @@ void free_history() {
 
 // Function to execute commands using UNIX Shell
 void execute_command(char *command) {
-    char *cmd_segments[MAX_ARG_SIZE];  // Split command segments by '|'
+    char *cmd_segments[MAX_ARG_SIZE];
     int num_segments = 0;
     char *segment = strtok(command, "|");
 
@@ -139,9 +139,6 @@ void execute_command(char *command) {
     for (int i = 0; i < num_segments; i++) {
         wait(NULL);
     }
-    
-    // Print a newline to separate command output from the next prompt
-    printf("\n");
 }
 
 // main loop
