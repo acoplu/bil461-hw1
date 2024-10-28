@@ -67,6 +67,22 @@ void execute_command(char *command) {
         }
 
         if (pid == 0) {  // Child process
+            // Check for output redirection
+            char *output_file = NULL;
+            char *output_redirect = strchr(cmd_segments[i], '>');
+            if (output_redirect) {
+                *output_redirect = '\0';  // Split the command at '>'
+                output_file = strtok(output_redirect + 1, " ");  // Get the filename
+                // Open the file for writing
+                int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if (fd == -1) {
+                    perror("open");
+                    exit(EXIT_FAILURE);
+                }
+                dup2(fd, STDOUT_FILENO);  // Redirect stdout to the file
+                close(fd);  // Close the file descriptor
+            }
+
             // Redirect stdin for commands after the first segment
             if (i > 0) {
                 dup2(pipes[i - 1][0], STDIN_FILENO);
