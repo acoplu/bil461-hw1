@@ -40,64 +40,72 @@ void free_history() {
 
 // Function to execute commands using UNIX Shell
 void execute_command(char *command) {
-    char *args[MAX_ARG_SIZE];
-    char *token;
-    int arg_count = 0;
-    int out_redirect = 0;
-    int in_redirect = 0;
-    char *output_file = NULL;
-    char *input_file = NULL;
+    char *cmd_segments[MAX_ARG_SIZE];  // Split command segments by '|'
+    int num_segments = 0;
+    char *segment = strtok(command, "|");
 
-    // Parse command and detect redirection symbols
-    token = strtok(command, " ");
-    while (token != NULL) {
-        if (strcmp(token, ">") == 0) {
-            out_redirect = 1;
-            token = strtok(NULL, " ");
-            if (token) output_file = token;
-        } else if (strcmp(token, "<") == 0) {
-            in_redirect = 1;
-            token = strtok(NULL, " ");
-            if (token) input_file = token;
-        } else {
-            args[arg_count++] = token;
-        }
-        token = strtok(NULL, " ");
+    // Split the command by "|"
+    while (segment != NULL) {
+        cmd_segments[num_segments++] = segment;
+        segment = strtok(NULL, "|");
     }
-    args[arg_count] = NULL;
 
-    pid_t pid = fork();
-    if (pid == 0) {  // Child process
-        // Handle output redirection
-        if (out_redirect && output_file) {
-            int fd_out = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (fd_out == -1) {
-                perror("open");
+    int pipes[MAX_ARG_SIZE - 1][2];  // Pipes between each command segment
+
+    for (int i = 0; i < num_segments; i++) {
+        if (i < num_segments - 1) {
+            if (pipe(pipes[i]) == -1) {
+                perror("pipe");
                 exit(EXIT_FAILURE);
             }
-            dup2(fd_out, STDOUT_FILENO);
-            close(fd_out);
         }
 
-        // Handle input redirection
-        if (in_redirect && input_file) {
-            int fd_in = open(input_file, O_RDONLY);
-            if (fd_in == -1) {
-                perror("open");
-                exit(EXIT_FAILURE);
+        pid_t pid = fork();
+        if (pid == -1) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+
+        if (pid == 0) {  // Child process
+            // Redirect stdin for commands after the first segment
+            if (i > 0) {
+                dup2(pipes[i - 1][0], STDIN_FILENO);
+                close(pipes[i - 1][0]);
+                close(pipes[i - 1][1]);
             }
-            dup2(fd_in, STDIN_FILENO);
-            close(fd_in);
-        }
 
-        execvp(args[0], args);
-        perror("execvp");
-        exit(EXIT_FAILURE);
-    } else if (pid > 0) {
-        wait(NULL);  // Parent process waits for child to complete
-    } else {
-        perror("fork");
-        exit(EXIT_FAILURE);
+            // Redirect stdout for commands before the last segment
+            if (i < num_segments - 1) {
+                dup2(pipes[i][1], STDOUT_FILENO);
+                close(pipes[i][0]);
+                close(pipes[i][1]);
+            }
+
+            // Parse arguments for the command segment
+            char *args[MAX_ARG_SIZE];
+            char *arg = strtok(cmd_segments[i], " ");
+            int arg_count = 0;
+            while (arg != NULL) {
+                args[arg_count++] = arg;
+                arg = strtok(NULL, " ");
+            }
+            args[arg_count] = NULL;
+
+            execvp(args[0], args);  // Execute command
+            perror("execvp");  // If execvp fails
+            exit(EXIT_FAILURE);
+        } else {  // Parent process
+            // Close used pipe ends
+            if (i > 0) {
+                close(pipes[i - 1][0]);
+                close(pipes[i - 1][1]);
+            }
+        }
+    }
+
+    // Wait for all child processes to complete
+    for (int i = 0; i < num_segments; i++) {
+        wait(NULL);
     }
 }
 
