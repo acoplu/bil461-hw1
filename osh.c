@@ -67,6 +67,22 @@ void execute_command(char *command) {
         }
 
         if (pid == 0) {  // Child process
+            // Check for input redirection
+            char *input_file = NULL;
+            char *input_redirect = strchr(cmd_segments[i], '<');
+            if (input_redirect) {
+                *input_redirect = '\0';  // Split the command at '<'
+                input_file = strtok(input_redirect + 1, " ");  // Get the filename
+                // Open the file for reading
+                int fd = open(input_file, O_RDONLY);
+                if (fd == -1) {
+                    perror("open");
+                    exit(EXIT_FAILURE);
+                }
+                dup2(fd, STDIN_FILENO);  // Redirect stdin to the file
+                close(fd);  // Close the file descriptor
+            }
+
             // Check for output redirection
             char *output_file = NULL;
             char *output_redirect = strchr(cmd_segments[i], '>');
@@ -123,6 +139,9 @@ void execute_command(char *command) {
     for (int i = 0; i < num_segments; i++) {
         wait(NULL);
     }
+    
+    // Print a newline to separate command output from the next prompt
+    printf("\n");
 }
 
 // main loop
