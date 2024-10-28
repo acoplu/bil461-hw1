@@ -95,6 +95,9 @@ void execute_command(char *command) {
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
         wait(NULL);  // Parent process waits for child to complete
+    } else {
+        perror("fork");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -104,6 +107,7 @@ int main() {
     
     while (1) {
         printf("osh-> ");
+        fflush(stdout);
 
         if (!fgets(command, MAX_INPUT_SIZE, stdin)) break;
         command[strlen(command) - 1] = '\0';  // Remove newline character
